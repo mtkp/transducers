@@ -1,69 +1,43 @@
 from functools import partial
-
 import typing
-from typing import List, Dict, Tuple, Any
-
-Fn = typing.Callable[..., Any]
+from typing import Dict, Any, Iterable
 
 
-class ProtocolImplementation:
-    def callable(self, o) -> Fn:
-        raise NotImplementedError("Abstract method")
+from transducers.typing import Implementation, Extension
 
 
-class InstanceMethod(ProtocolImplementation):
-    def __init__(self, method_name: str):
-        self._method_name = method_name
-
-    def callable(self, o):
-        return o.__getattribute__(self._method_name)
-
-
-class ClassConstructor(ProtocolImplementation):
-    def __init__(self):
-        pass
-
-    def callable(self, o):
-        return o.__class__
-
-
-class Callable(ProtocolImplementation):
-    def __init__(self, callable):
-        self._callable = callable
-
-    def callable(self, o):
-        return partial(self._callable, o)
-
-
-__protocols: Dict[str, Dict[str, Dict[type, ProtocolImplementation]]] = {}
-
-
-def protocol(name: str, methods: List[str]):
-    if name not in __protocols:
-        __protocols[name] = {}
-    protocol = __protocols[name]
-    for method in methods:
-        if method not in protocol:
-            protocol[method] = {}
-
-
-def extend_protocol(name: str, t: type, *impls: Tuple[str, ProtocolImplementation]):
-    protocol = __protocols[name]
-    for (method, impl) in impls:
-        __protocols[name][method][t] = impl
-
-
-def get_implementation(protocol, method, o) -> typing.Callable:
-    protocol_method = __protocols[protocol][method]
-    # TODO support class hierarchy
-    # Make sure type/base types are in preferred order
+def call(name: str, impls: Implementation, o: Any, *args, **kwargs):
+    # TODO support class hierarchy with type and base types in ideal order
     types = [type(o)]
     impl = None
     for t in types:
-        if t in protocol_method:
-            impl = protocol_method[t]
-    if impl is not None:
-        return impl.callable(o)
+        if t in impls:
+            impl = impls[t]
+            break
+    if callable(impl):
+        return impl(o, *args, **kwargs)
     raise ValueError(
-        f"Protocol {protocol}.{method} not implemented for {o} ({type(o)})"
+        f"Protocol method '{name}' not implemented for '{type(o).__name__}'"
     )
+
+
+class Protocol:
+    def __init__(self, interface: Iterable[str]):
+        self.__implementations: Dict[str, Implementation] = {}
+        for method in set(interface):
+            self.__implementations[method] = {}
+
+    def extend(self, t: type, *impls: Extension):
+        for (method, impl) in impls:
+            self.__implementations[method][t] = impl
+
+    def __getattr__(self, name: str):
+        if name in self.__implementations:
+            return partial(call, name, self.__implementations[name])
+        raise AttributeError(
+            f"'{type(self).__name__}' object has no attribute '{name}'"
+        )
+
+
+def protocol(*interface: str) -> Protocol:
+    return Protocol(interface)
