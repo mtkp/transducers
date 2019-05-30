@@ -35,3 +35,15 @@ squares_divisible_by_three = t.comp(
 for x in t.generate(squares_divisible_by_three, source):
     print(f"{x}")
 ```
+
+## Dev
+
+Requires `mypy` and `black`.
+
+```sh
+# run mypy (make check) and the transducer tests
+make test
+
+# run python black formatter
+make format
+```
