@@ -1,7 +1,7 @@
 from typing import List, Union, Callable, Any, Iterable, Set
 
-from protocols import protocol, extend_protocol
-import protocols as proto
+from transducers.protocols import protocol, extend_protocol
+import transducers.protocols as proto
 
 # types
 
