@@ -25,6 +25,10 @@ class Protocol:
     def __init__(self, interface: Iterable[str]):
         self.__implementations: Dict[str, Implementation] = {}
         for method in set(interface):
+            if method == "extend":
+                raise ValueError(
+                    "Cannot create a protocol with 'extend' (reserved for Protocol class)."
+                )
             self.__implementations[method] = {}
 
     def extend(self, t: type, *impls: Extension):
@@ -40,4 +44,13 @@ class Protocol:
 
 
 def protocol(*interface: str) -> Protocol:
+    """
+    Create a new protocol with the given interface. Returns a protocol object.
+    The protocol object itself contains the implementations, and must be used
+    to invoke the interface
+
+    greeter = protocol("hello")
+    greeter.extend(int, ("hello", lambda x: f"Welcome, {x}!"))
+    greeter.hello(42) #=> "Welcome, 42!"
+    """
     return Protocol(interface)
