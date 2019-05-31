@@ -10,12 +10,24 @@ def invert_dict(d: Dict) -> Coll:
 
 
 def add(x, *xs):
-    if len(xs) == 1:
-        return x + xs[0]
-    elif not xs:
+    if not xs:
         return x
+    elif len(xs) == 1:
+        return x + xs[0]
     raise TypeError(f"Too many positional arguments to 'add' ({1 + len(xs)})")
 
 
 def sum(coll: Iterable):
     return t.reduce(add, 0, coll)
+
+
+def mult(x, *xs):
+    if not xs:
+        return x
+    elif len(xs) == 1:
+        return x * xs[0]
+    raise TypeError(f"Too many positional arguments to 'mult' ({1 + len(xs)})")
+
+
+def product(coll: Iterable):
+    return t.reduce(mult, 1, coll)

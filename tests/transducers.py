@@ -397,23 +397,25 @@ class GenerateTest(unittest.TestCase):
 
 class PartitionTest(unittest.TestCase):
     def test_partition(self):
-        self.assertEqual([], t.into_new(t.partition(3), list(range(0))))
-        self.assertEqual([[0]], t.into_new(t.partition(3), list(range(1))))
+        xf = t.partition(3)
 
-        self.assertEqual([[0, 1]], t.into_new(t.partition(3), list(range(2))))
+        self.assertEqual([], t.into_new(xf, list(range(0))))
+        self.assertEqual([[0]], t.into_new(xf, list(range(1))))
+        self.assertEqual([[0, 1]], t.into_new(xf, list(range(2))))
+        self.assertEqual([[0, 1, 2]], t.into_new(xf, list(range(3))))
+        self.assertEqual([[0, 1, 2], [3]], t.into_new(xf, list(range(4))))
+        self.assertEqual([[0, 1, 2], [3, 4]], t.into_new(xf, list(range(5))))
+        self.assertEqual([[0, 1, 2], [3, 4, 5]], t.into_new(xf, list(range(6))))
+        self.assertEqual([[0, 1, 2], [3, 4, 5], [6]], t.into_new(xf, list(range(7))))
 
-        self.assertEqual([[0, 1, 2]], t.into_new(t.partition(3), list(range(3))))
-
-        self.assertEqual([[0, 1, 2], [3]], t.into_new(t.partition(3), list(range(4))))
-
-        self.assertEqual(
-            [[0, 1, 2], [3, 4]], t.into_new(t.partition(3), list(range(5)))
+    def test_partition_sum(self):
+        xf = t.comp(
+            t.partition(10),
+            t.map(lambda p: u.product(p)),
+            t.map_indexed(lambda i, p: (i, p)),
         )
 
         self.assertEqual(
-            [[0, 1, 2], [3, 4, 5]], t.into_new(t.partition(3), list(range(6)))
-        )
-
-        self.assertEqual(
-            [[0, 1, 2], [3, 4, 5], [6]], t.into_new(t.partition(3), list(range(7)))
+            {0: 3628800, 1: 670442572800, 2: 109027350432000},
+            t.transduce(xf, t.conj, {}, range(1, 31)),
         )

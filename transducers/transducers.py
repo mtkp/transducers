@@ -13,7 +13,6 @@ import transducers.protocols as p
 # - halt-when (uses reduced)
 # - keep
 # - keep-indexed
-# - map-indexed
 
 
 def identity(x):
@@ -122,6 +121,32 @@ def map(f: Fn, *rest: Iterable):
                 return rf(init, f(xs[0]))
             raise TypeError(
                 f"Some arities of transducing `map` not supported ({1 + len(xs)})."
+            )
+
+        return rf2
+
+    return xform
+
+
+def map_indexed(f: Fn, *rest: Iterable):
+    if rest:
+        if len(rest) == 1:
+            return (f(i, x) for i, x in enumerate(iterator(rest[0])))
+        raise TypeError("Can't `map_indexed` on more than one collection.")
+
+    def xform(rf):
+        i = 0
+
+        def rf2(init, *xs):
+            nonlocal i
+            if not xs:
+                return rf(init)
+            elif len(xs) == 1:
+                res = rf(init, f(i, xs[0]))
+                i += 1
+                return res
+            raise TypeError(
+                f"Some arities of transducing `map_indexed` not supported ({1 + len(xs)})."
             )
 
         return rf2
