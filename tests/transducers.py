@@ -306,3 +306,114 @@ class TransducerTests(unittest.TestCase):
 
         res = t.transduce(xf, u.add, 100, range(5))
         self.assertEqual(106, res)
+
+
+class ChunkedConjTest(unittest.TestCase):
+    def test_complete(self):
+        conj = t.chunked_conj(chunk_size=4)
+        self.assertEqual([1], conj([1]))
+
+        conj = t.chunked_conj(chunk_size=4)
+        self.assertEqual([1, 2], conj([1, 2]))
+
+        f = t.chunked_conj(chunk_size=4)
+        self.assertEqual([1, 2, 3, 4, 5], conj([1, 2, 3, 4, 5]))
+
+    def test_conj(self):
+        conj = t.chunked_conj(chunk_size=4)
+        l = []
+        self.assertEqual([], conj(l, 1))
+        self.assertEqual([], conj(l, 2, 3))
+        self.assertEqual([1, 2, 3, 4, 5, 6], conj(l, 4, 5, 6))
+
+    def test_chunking(self):
+        l = [1, 2]
+        conj = t.chunked_conj(chunk_size=3)
+        self.assertEqual([1, 2], conj(l, 3))
+        self.assertEqual([1, 2], conj(l, 4))
+        self.assertEqual([1, 2, 3, 4, 5], conj(l, 5))
+        self.assertEqual([1, 2, 3, 4, 5], conj(l, 6))
+        self.assertEqual([1, 2, 3, 4, 5], conj(l, 7))
+        self.assertEqual([1, 2, 3, 4, 5, 6, 7, 8], conj(l, 8))
+        self.assertEqual([1, 2, 3, 4, 5, 6, 7, 8], conj(l))
+
+    def test_chunking_immutable_coll(self):
+        conj = t.chunked_conj(chunk_size=5)
+        self.assertEqual("hi", conj("hi", " "))
+        self.assertEqual("hi", conj("hi", "t"))
+        self.assertEqual("hi", conj("hi", "h"))
+        self.assertEqual("hi", conj("hi", "e"))
+        self.assertEqual("hi ther", conj("hi", "r"))
+        self.assertEqual("hi ther", conj("hi ther", "e"))
+        # complete
+        self.assertEqual("hi there", conj("hi ther"))
+
+    def test_chunking_transduction(self):
+        xf = t.comp(t.map(lambda s: s.upper()), t.remove(lambda s: s == " "))
+        conj = t.chunked_conj()
+        s = "t ra nsd u c e"
+        self.assertEqual("TRANSDUCE", t.transduce(xf, conj, "", s))
+
+
+def set_buffer(rf):
+    buffer = set()
+
+    def rf2(init, *xs):
+        if xs:
+            buffer.add(xs[0])
+            return init
+        return rf(init, buffer)
+
+    return rf2
+
+
+class GenerateTest(unittest.TestCase):
+    def test_generate(self):
+        xf = t.comp(t.map(lambda s: s.upper()), t.remove(lambda s: s == " "))
+
+        g = t.generate(xf, "h e llo")
+        self.assertTrue(inspect.isgenerator(g))
+
+        res = list(g)
+        self.assertEqual(5, len(res))
+        self.assertEqual(["H", "E", "L", "L", "O"], res)
+
+    def test_generate_completion(self):
+        xf = t.comp(
+            t.map(lambda s: s.upper()),
+            t.remove(lambda s: s == " "),
+            t.remove(lambda s: s == "L"),
+            set_buffer,  # <- transducer which requires completion to yield result
+        )
+
+        g = t.generate(xf, "h e llo")
+        self.assertTrue(inspect.isgenerator(g))
+
+        # all elements are buffered into a single list
+        res = list(g)
+        self.assertEqual(1, len(res))
+        self.assertEqual([set(["H", "E", "O"])], res)
+
+
+class PartitionTest(unittest.TestCase):
+    def test_partition(self):
+        self.assertEqual([], t.into_new(t.partition(3), list(range(0))))
+        self.assertEqual([[0]], t.into_new(t.partition(3), list(range(1))))
+
+        self.assertEqual([[0, 1]], t.into_new(t.partition(3), list(range(2))))
+
+        self.assertEqual([[0, 1, 2]], t.into_new(t.partition(3), list(range(3))))
+
+        self.assertEqual([[0, 1, 2], [3]], t.into_new(t.partition(3), list(range(4))))
+
+        self.assertEqual(
+            [[0, 1, 2], [3, 4]], t.into_new(t.partition(3), list(range(5)))
+        )
+
+        self.assertEqual(
+            [[0, 1, 2], [3, 4, 5]], t.into_new(t.partition(3), list(range(6)))
+        )
+
+        self.assertEqual(
+            [[0, 1, 2], [3, 4, 5], [6]], t.into_new(t.partition(3), list(range(7)))
+        )

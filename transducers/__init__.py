@@ -2,6 +2,7 @@ __version__ = "0.0.1"
 
 from transducers.transducers import (
     conj,
+    chunked_conj,
     complement,
     comp,
     concat,
@@ -14,6 +15,7 @@ from transducers.transducers import (
     into_new,
     iterator,
     map,
+    partition,
     remove,
     reduce,
     take,
