@@ -1,12 +1,13 @@
 mtkp/transducers
 ================
 
-Experimental transducers (a la Clojure) for Python. Also incldues
-a simple protocol (interface) implementation for Python which allows dynamic
-extension to arbitrary python types.
+Experimental transducers (a la Clojure) for Python. Includes general
+functional abstractions such as `map`, `filter`, `reduce`, in addition
+to `transduce`. Also includes a simple protocol (interface) implementation
+for Python which allows dynamic extensions on top of arbitrary python types
+(including builtins).
 
 # Usage
-
 
 ```py3
 import transducers as t
