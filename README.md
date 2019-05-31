@@ -51,8 +51,6 @@ t.transduce(xf, lambda x, y: x + y,   0, range(5))
 # => 6
 t.transduce(xf, lambda x, y: x + y, 100, range(5))
 # => 106
-
-
 ```
 
 ## Dev

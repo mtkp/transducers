@@ -6,6 +6,7 @@ from transducers.transducers import (
     comp,
     concat,
     distinct,
+    dedupe,
     drop,
     filter,
     generate,

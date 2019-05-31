@@ -10,8 +10,6 @@ import transducers.protocols as p
 # - take-while (uses reduced)
 # - drop-while
 # - take-nth
-# - distinct
-# - dedupe
 # - interpose (uses reduced)
 # - partition-all
 # - halt-when (uses reduced)
@@ -67,35 +65,16 @@ def comp(f, *fs):
 
 
 # declare a new collection protocol
-collection = protocol("conj_iterable", "empty")
-
-# extend collection for built in list
-collection.extend(
-    list,
-    ("conj_iterable", lambda l, iterable: l.extend(iterable) or l),
-    ("empty", lambda _: []),
-)
-
-# extend collection for built in set
-collection.extend(
-    set,
-    ("conj_iterable", lambda s, iterable: s.update(iterable) or s),
-    ("empty", lambda _: set()),
-)
-
-# extend collection for built in dict
-collection.extend(
-    dict,
-    ("conj_iterable", lambda d, iterable: d.update(iterable) or d),
-    ("empty", lambda _: {}),
-)
+collection = protocol("conj", "conj_iterable", "empty")
 
 
 def conj(coll, *xs) -> Coll:
     """
     Conjoin the value x onto coll.
     """
-    if len(xs) == 0:
+    if len(xs) == 1:
+        return collection.conj(coll, xs[0])
+    elif not xs:
         return coll
     return collection.conj_iterable(coll, xs)
 
@@ -108,10 +87,6 @@ def empty(coll) -> Coll:
 
 
 custom_iterator = protocol("iterator")
-
-# use items as the iterator accessor for built in dict
-# -> lets us transduce from one dict into another dict
-custom_iterator.extend(dict, ("iterator", lambda d: d.items()))
 
 
 def iterator(coll: Iterable) -> Iterable:
@@ -139,7 +114,7 @@ def map(f: Fn, *rest: Iterable):
                 elif len(args) == 2:
                     init, x = args
                     return rf(init, f(x))
-                raise ValueError(
+                raise TypeError(
                     f"Some arities of transducing `map` not yet supported ({args})."
                 )
 
@@ -155,7 +130,7 @@ def filter(pred: Fn, *rest: Iterable):
     if rest:
         if len(rest) == 1:
             return (x for x in iterator(rest[0]) if pred(x))
-        raise ValueError("Can't `filter` on more than one collection.")
+        raise TypeError("Can't `filter` on more than one collection.")
     else:
 
         def xform(rf):
@@ -167,7 +142,7 @@ def filter(pred: Fn, *rest: Iterable):
                     if pred(x):
                         return rf(init, x)
                     return init
-                raise ValueError(
+                raise TypeError(
                     f"Some arities of transducing `filter` not yet supported ({args})."
                 )
 
@@ -227,7 +202,7 @@ def take(n: int, *rest: Iterable):
     if rest:
         if len(rest) == 1:
             return __take_generator(n, rest[0])
-        raise ValueError("Can't `take` on more than one collection.")
+        raise TypeError("Can't `take` on more than one collection.")
     else:
 
         def xform(rf):
@@ -243,7 +218,7 @@ def take(n: int, *rest: Iterable):
                         seen -= 1
                         return rf(init, x)
                     return ensure_reduced(init)
-                raise ValueError(
+                raise TypeError(
                     f"Some arities of transducing `take` not yet supported ({args})."
                 )
 
@@ -265,7 +240,7 @@ def drop(n: int, *rest: Iterable):
     if rest:
         if len(rest) == 1:
             return __drop_generator(n, rest[0])
-        raise ValueError("Can't `drop` on more than one collection.")
+        raise TypeError("Can't `drop` on more than one collection.")
     else:
 
         def xform(rf):
@@ -281,7 +256,7 @@ def drop(n: int, *rest: Iterable):
                         return rf(init, x)
                     seen -= 1
                     return init
-                raise ValueError(
+                raise TypeError(
                     f"Some arities of transducing `drop` not yet supported ({args})."
                 )
 
@@ -302,7 +277,7 @@ def distinct(*rest: Iterable):
     if rest:
         if len(rest) == 1:
             return __distinct_generator(rest[0])
-        raise ValueError("Can't `drop` on more than one collection.")
+        raise TypeError("Can't `drop` on more than one collection.")
     else:
 
         def xform(rf):
@@ -318,7 +293,46 @@ def distinct(*rest: Iterable):
                         s.add(x)
                         return rf(init, x)
                     return init
-                raise ValueError(
+                raise TypeError(
+                    f"Some arities of transducing `distinct` not yet supported ({args})."
+                )
+
+            return rf2
+
+        return xform
+
+
+def __dedupe_generator(coll: Iterable) -> Iterable:
+    stub = object()
+    last = stub
+    for x in coll:
+        if last is stub or x != last:
+            last = x
+            yield last
+
+
+def dedupe(*rest: Iterable):
+    if rest:
+        if len(rest) == 1:
+            return __dedupe_generator(rest[0])
+        raise TypeError("Can't `drop` on more than one collection.")
+    else:
+
+        def xform(rf):
+            stub = object()
+            last = stub
+
+            def rf2(*args):
+                nonlocal last
+                if len(args) == 1:
+                    return rf(*args)
+                elif len(args) == 2:
+                    init, x = args
+                    if last is stub or x != last:
+                        last = x
+                        return rf(init, x)
+                    return init
+                raise TypeError(
                     f"Some arities of transducing `distinct` not yet supported ({args})."
                 )
 
@@ -342,13 +356,27 @@ def reduce(f: Fn, init, coll: Iterable):
     return init
 
 
+def __safe_completing(f):
+    def f2(arg, *rest):
+        if not rest:
+            try:
+                return f(arg)
+            except TypeError:
+                return arg
+        return f(arg, *rest)
+
+    return f2
+
+
 def transduce(xform: Fn, f: Fn, init, coll: Iterable):
     """
     Reduces `coll` onto `init` using the result of applying the transducing
     function `xform` to the reducing function `f`. Returns the result of the
     reduction.
     """
-    return reduce(xform(f), init, coll)
+    f = xform(__safe_completing(f))
+    ret = reduce(f, init, coll)
+    return f(ret)
 
 
 def into(init, *rest):
@@ -363,7 +391,7 @@ def into(init, *rest):
         xform, coll = rest
         return transduce(xform, conj, init, coll)
     else:
-        raise ValueError("Can't `into` without a source or with more than one source.")
+        raise TypeError("Can't `into` without a source or with more than one source.")
 
 
 def generate(xform: Fn, coll: Iterable) -> Iterable:
@@ -407,6 +435,7 @@ def concat(*colls: Iterable):
         return __concat_generator(colls)
 
     else:
+
         def xform(rf):
             rrf = preserving_reduced(rf)
 
@@ -416,10 +445,44 @@ def concat(*colls: Iterable):
                 elif len(args) == 2:
                     init, x = args
                     return reduce(rrf, init, x)
-                raise ValueError(
+                raise TypeError(
                     f"Some arities of transducing `concat` not yet supported ({args})."
                 )
 
             return rf2
 
         return xform
+
+
+# extend collection protocol for built in list, set, dict, str
+collection.extend(
+    list,
+    ("conj", lambda l, x: l.append(x) or l),
+    ("conj_iterable", lambda l, iterable: l.extend(iterable) or l),
+    ("empty", lambda _: []),
+)
+
+collection.extend(
+    set,
+    ("conj", lambda s, x: s.add(x) or s),
+    ("conj_iterable", lambda s, iterable: s.update(iterable) or s),
+    ("empty", lambda _: set()),
+)
+
+collection.extend(
+    dict,
+    ("conj", lambda d, t: d.update([t]) or d),
+    ("conj_iterable", lambda d, iterable: d.update(iterable) or d),
+    ("empty", lambda _: {}),
+)
+
+collection.extend(
+    str,
+    ("conj", lambda s, x: s + x),
+    ("conj_iterable", lambda s, iterable: "".join(x for x in concat([s], iterable))),
+    ("empty", lambda _: ""),
+)
+
+# use dict.items as the iterator accessor for built in dict
+# (lets us transduce from one dict into another dict)
+custom_iterator.extend(dict, ("iterator", lambda d: d.items()))

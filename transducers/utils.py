@@ -9,5 +9,13 @@ def invert_dict(d: Dict) -> Coll:
     return t.into_new(invert, d)
 
 
+def add(x, *xs):
+    if len(xs) == 1:
+        return x + xs[0]
+    elif not xs:
+        return x
+    raise TypeError(f"Too many positional arguments to 'add' ({1 + len(xs)})")
+
+
 def sum(coll: Iterable):
-    return t.reduce(lambda x, y: x + y, 0, coll)
+    return t.reduce(add, 0, coll)
