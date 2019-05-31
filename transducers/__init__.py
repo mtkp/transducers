@@ -4,6 +4,7 @@ from transducers.transducers import (
     conj,
     complement,
     comp,
+    concat,
     distinct,
     drop,
     filter,

@@ -1,7 +1,7 @@
 import unittest
 import inspect
 
-import transducers.transducers as t
+import transducers as t
 import transducers.utils as utils
 
 
@@ -132,8 +132,8 @@ class TakeTests(unittest.TestCase):
         self.assertTrue(inspect.isgenerator(res))
         self.assertEqual([0, 1, 2, 3, 4], list(res))
 
-    def test_take_with_cat(self):
-        xf = t.comp(t.cat(), t.take(1000))
+    def test_take_with_concat(self):
+        xf = t.comp(t.concat(), t.take(1000))
         g1 = (range(800) for _ in range(100000000))
         g2 = (range(100000000) for _ in range(800))
         g3 = (range(5) for _ in range(7))
@@ -144,13 +144,21 @@ class TakeTests(unittest.TestCase):
         self.assertEqual(1000, len(t.into([], xf, g2)))
         self.assertEqual(35, len(t.into([], xf, g3)))
 
-        xf = t.comp(t.take(10), t.cat())
+        xf = t.comp(t.take(10), t.concat())
         g1 = (range(15) for _ in range(100000))
         g2 = (range(1000) for _ in range(8))
 
         self.assertEqual(150, len(t.into([], xf, g1)))
         self.assertEqual(8000, len(t.into([], xf, g2)))
 
+class ConcatTests(unittest.TestCase):
+    def test_concat(self):
+        a = [1, 2, 3]
+        b = list("hello")
+        c = (x for x in range(20, 23))
+        res = t.concat(a, b, c)
+        self.assertTrue(inspect.isgenerator(res))
+        self.assertEqual([1, 2, 3, "h", "e", "l", "l", "o", 20, 21, 22], list(res))
 
 class DropTests(unittest.TestCase):
     def test_drop(self):
@@ -178,7 +186,7 @@ class IntoTests(unittest.TestCase):
         lookup_add = {}
         xf = t.comp(
             t.map(lambda x: list(t.map(lambda y: (x, y), numbers))),
-            t.cat(),
+            t.concat(),
             t.map(lambda tup: ((tup[0], tup[1]), utils.sum(tup))),
         )
         t.into(lookup_add, xf, numbers)

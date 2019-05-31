@@ -188,14 +188,28 @@ class Reduced:
         self.value = value
 
 
-def reduced(value) -> Reduced:
+def ensure_reduced(value) -> Reduced:
+    """
+    Ensure the value is wrapped with a reduced wrapper.
+    """
+    if isinstance(value, Reduced):
+        return value
     return Reduced(value)
 
 
-def ensure_reduced(value) -> Reduced:
-    if isinstance(value, Reduced):
-        return value
-    return reduced(value)
+def preserving_reduced(rf):
+    """
+    Wrap a reduced result with a second reduced wrapper; for nested
+    reductions.
+    """
+
+    def rf2(init, x):
+        init = rf(init, x)
+        if isinstance(init, Reduced):
+            return Reduced(init)
+        return init
+
+    return rf2
 
 
 def __take_generator(n: int, coll: Iterable):
@@ -379,30 +393,33 @@ def into_new(xform: Fn, coll: Coll) -> Coll:
     return into(empty(coll), generate(xform, coll))
 
 
-def preserving_reduced(rf):
-    def rf2(init, x):
-        init = rf(init, x)
-        if isinstance(init, Reduced):
-            return reduced(init)
-        return init
-
-    return rf2
+def __concat_generator(colls: Iterable[Iterable]):
+    for coll in colls:
+        yield from coll
 
 
-def cat():
-    def xform(rf):
-        rrf = preserving_reduced(rf)
+def concat(*colls: Iterable):
+    """
+    Concatenate the values from 1 or more colls into a single sequence.
+    If no colls are provided, returns a transducer.
+    """
+    if colls:
+        return __concat_generator(colls)
 
-        def rf2(*args):
-            if len(args) == 1:
-                return rf(*args)
-            elif len(args) == 2:
-                init, x = args
-                return reduce(rrf, init, x)
-            raise ValueError(
-                f"Some arities of transducing `cat` not yet supported ({args})."
-            )
+    else:
+        def xform(rf):
+            rrf = preserving_reduced(rf)
 
-        return rf2
+            def rf2(*args):
+                if len(args) == 1:
+                    return rf(*args)
+                elif len(args) == 2:
+                    init, x = args
+                    return reduce(rrf, init, x)
+                raise ValueError(
+                    f"Some arities of transducing `concat` not yet supported ({args})."
+                )
 
-    return xform
+            return rf2
+
+        return xform
