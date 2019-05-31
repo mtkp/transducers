@@ -5,7 +5,6 @@ from transducers.protocols import protocol
 import transducers.protocols as p
 
 
-# TODO linked list class and support for it
 # TODO
 # - mapcat
 # - take-while (uses reduced)
@@ -15,7 +14,6 @@ import transducers.protocols as p
 # - dedupe
 # - interpose (uses reduced)
 # - partition-all
-# - cat ... ?
 # - halt-when (uses reduced)
 
 
@@ -191,9 +189,13 @@ class Reduced:
 
 
 def reduced(value) -> Reduced:
+    return Reduced(value)
+
+
+def ensure_reduced(value) -> Reduced:
     if isinstance(value, Reduced):
         return value
-    return Reduced(value)
+    return reduced(value)
 
 
 def __take_generator(n: int, coll: Iterable):
@@ -226,7 +228,7 @@ def take(n: int, *rest: Iterable):
                     if seen > 0:
                         seen -= 1
                         return rf(init, x)
-                    return reduced(init)
+                    return ensure_reduced(init)
                 raise ValueError(
                     f"Some arities of transducing `take` not yet supported ({args})."
                 )
@@ -311,7 +313,7 @@ def distinct(*rest: Iterable):
         return xform
 
 
-def reduce(f: Fn, init: Union[Coll, Reduced], coll: Iterable):
+def reduce(f: Fn, init, coll: Iterable):
     """
     Reduce `coll` onto `init` using the reducing function `f`.
     Returns the result of the reduction when:
@@ -326,7 +328,7 @@ def reduce(f: Fn, init: Union[Coll, Reduced], coll: Iterable):
     return init
 
 
-def transduce(xform: Fn, f: Fn, init: Union[Coll, Reduced], coll: Iterable):
+def transduce(xform: Fn, f: Fn, init, coll: Iterable):
     """
     Reduces `coll` onto `init` using the result of applying the transducing
     function `xform` to the reducing function `f`. Returns the result of the
@@ -335,7 +337,7 @@ def transduce(xform: Fn, f: Fn, init: Union[Coll, Reduced], coll: Iterable):
     return reduce(xform(f), init, coll)
 
 
-def into(init: Coll, *rest):
+def into(init, *rest):
     """
     Reduces a coll into the `init` collection. `init` must support `conj`.
     If a transducing function is provided, applies transducer while reducing
@@ -375,3 +377,32 @@ def into_new(xform: Fn, coll: Coll) -> Coll:
     applying transducing funtion `xform` to the sequence.
     """
     return into(empty(coll), generate(xform, coll))
+
+
+def preserving_reduced(rf):
+    def rf2(init, x):
+        init = rf(init, x)
+        if isinstance(init, Reduced):
+            return reduced(init)
+        return init
+
+    return rf2
+
+
+def cat():
+    def xform(rf):
+        rrf = preserving_reduced(rf)
+
+        def rf2(*args):
+            if len(args) == 1:
+                return rf(*args)
+            elif len(args) == 2:
+                init, x = args
+                return reduce(rrf, init, x)
+            raise ValueError(
+                f"Some arities of transducing `cat` not yet supported ({args})."
+            )
+
+        return rf2
+
+    return xform

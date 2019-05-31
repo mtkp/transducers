@@ -2,6 +2,7 @@ import unittest
 import inspect
 
 import transducers.transducers as t
+import transducers.utils as utils
 
 
 def inc(x):
@@ -131,12 +132,58 @@ class TakeTests(unittest.TestCase):
         self.assertTrue(inspect.isgenerator(res))
         self.assertEqual([0, 1, 2, 3, 4], list(res))
 
+    def test_take_with_cat(self):
+        xf = t.comp(t.cat(), t.take(1000))
+        g1 = (range(800) for _ in range(100000000))
+        g2 = (range(100000000) for _ in range(800))
+        g3 = (range(5) for _ in range(7))
+
+        l = []
+        self.assertEqual(1000, len(t.into(l, xf, g1)))
+        self.assertEqual(800, len(set(l)))
+        self.assertEqual(1000, len(t.into([], xf, g2)))
+        self.assertEqual(35, len(t.into([], xf, g3)))
+
+        xf = t.comp(t.take(10), t.cat())
+        g1 = (range(15) for _ in range(100000))
+        g2 = (range(1000) for _ in range(8))
+
+        self.assertEqual(150, len(t.into([], xf, g1)))
+        self.assertEqual(8000, len(t.into([], xf, g2)))
+
 
 class DropTests(unittest.TestCase):
     def test_drop(self):
         res = t.drop(5, range(18))
         self.assertTrue(inspect.isgenerator(res))
         self.assertEqual(list(range(5, 18)), list(res))
+
+
+class IntoTests(unittest.TestCase):
+    def test_into_from_to(self):
+        l = list(range(10))
+        l.extend(range(10))
+        l.extend(range(10))
+        s = set()
+
+        self.assertEqual(30, len(l))
+        self.assertEqual(0, len(s))
+
+        t.into(s, l)
+        self.assertEqual(30, len(l))
+        self.assertEqual(10, len(s))
+
+    def test_into_from_xf_to(self):
+        numbers = list(range(10))
+        lookup_add = {}
+        xf = t.comp(
+            t.map(lambda x: list(t.map(lambda y: (x, y), numbers))),
+            t.cat(),
+            t.map(lambda tup: ((tup[0], tup[1]), utils.sum(tup))),
+        )
+        t.into(lookup_add, xf, numbers)
+        self.assertEqual(2, lookup_add[(1, 1)])
+        self.assertEqual(16, lookup_add[(9, 7)])
 
 
 class IntoNewTests(unittest.TestCase):

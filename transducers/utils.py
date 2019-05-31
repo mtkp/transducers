@@ -1,24 +1,13 @@
-def spy(f):
-    """
-    Wrap f with debugging output.
-    """
-    name = f.__name__
+from typing import Dict, Iterable
 
-    def wrapped(*args, **kwargs):
-        pargs = ", ".join(str(arg) for arg in args)
-        pkwargs = ", ".join(f"{k}={v}" for k, v in kwargs.items())
-        if pargs and pkwargs:
-            print(f"{name}({pargs}, {pkwargs})")
-        elif pargs:
-            print(f"{name}({pargs})")
-        elif pkwargs:
-            print(f"{name}({pkwargs})")
-        else:
-            print(f"{name}()")
-        res = f(*args, **kwargs)
-        print(f"  => {res}")
-        return res
+from transducers.typing import Coll
+import transducers.transducers as t
 
-    wrapped.__doc__ = f.__doc__
-    wrapped.__name__ = name
-    return wrapped
+
+def invert_dict(d: Dict) -> Coll:
+    invert = t.map(lambda tup: (tup[1], tup[0]))
+    return t.into_new(invert, d)
+
+
+def sum(coll: Iterable):
+    return t.reduce(lambda x, y: x + y, 0, coll)
