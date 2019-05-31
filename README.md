@@ -35,6 +35,24 @@ squares_divisible_by_three = t.comp(
 # needed by the transducer.
 for x in t.generate(squares_divisible_by_three, source):
     print(f"{x}")
+
+# recreate an example from https://www.clojure.org/reference/transducers
+# (def xf (comp (filter odd?) (map inc)))
+# (transduce xf + (range 5))
+# ;; => 6
+# (transduce xf + 100 (range 5))
+# ;; => 106
+
+xf = t.comp(
+    t.filter(lambda x: x % 2 == 1),
+    t.map(lambda x: x + 1)
+)
+t.transduce(xf, lambda x, y: x + y,   0, range(5))
+# => 6
+t.transduce(xf, lambda x, y: x + y, 100, range(5))
+# => 106
+
+
 ```
 
 ## Dev
