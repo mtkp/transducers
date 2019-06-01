@@ -14,6 +14,7 @@ from transducers.transducers import (
     into,
     into_new,
     iterator,
+    keep,
     map,
     map_indexed,
     partition,

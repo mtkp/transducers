@@ -402,8 +402,13 @@ class GenerateTest(unittest.TestCase):
 
 class PartitionTest(unittest.TestCase):
     def test_partition(self):
-        xf = t.partition(3)
+        # generator
+        res = t.partition(4, range(9))
+        self.assertTrue(inspect.isgenerator(res))
+        self.assertEqual([[0, 1, 2, 3], [4, 5, 6, 7], [8]], list(res))
 
+        # transducing
+        xf = t.partition(3)
         self.assertEqual([], t.into_new(xf, list(range(0))))
         self.assertEqual([[0]], t.into_new(xf, list(range(1))))
         self.assertEqual([[0, 1]], t.into_new(xf, list(range(2))))
@@ -423,4 +428,22 @@ class PartitionTest(unittest.TestCase):
         self.assertEqual(
             {0: 3628800, 1: 670442572800, 2: 109027350432000},
             t.transduce(xf, t.conj, {}, range(1, 31)),
+        )
+
+
+class KeepTest(unittest.TestCase):
+    def test_keep(self):
+        special_numbers = {7: "seven", 4: "four", 42: "forty-two"}
+        get_special_number = lambda x: special_numbers.get(x)
+        # generator
+        res = t.keep(get_special_number, range(10))
+        self.assertTrue(inspect.isgenerator(res))
+        self.assertEqual(["four", "seven"], list(res))
+
+        # transduction
+        res = t.into_new(
+            t.keep(get_special_number), [0, 1, 42, 7, 7, 0, 4, 3, 43, 9, 4, 7]
+        )
+        self.assertEqual(
+            ["forty-two", "seven", "seven", "four", "four", "seven"], list(res)
         )

@@ -11,7 +11,6 @@ import transducers.protocols as p
 # - take-nth
 # - interpose (uses reduced)
 # - halt-when (uses reduced)
-# - keep
 # - keep-indexed
 
 
@@ -98,7 +97,7 @@ custom_iter = protocol("iter")
 
 def iterator(coll: Iterable) -> Iterable:
     """
-    Get (possibly custom) iterator for the coll.
+    Get (possibly custom) iterator for the `coll`.
     """
     try:
         return custom_iter.iter(coll)
@@ -107,6 +106,9 @@ def iterator(coll: Iterable) -> Iterable:
 
 
 def map(f: Fn, *rest: Iterable):
+    """
+    Map values of iterable with `f`.
+    """
     if rest:
         if len(rest) == 1:
             return (f(x) for x in iterator(rest[0]))
@@ -129,6 +131,10 @@ def map(f: Fn, *rest: Iterable):
 
 
 def map_indexed(f: Fn, *rest: Iterable):
+    """
+    Map values with their indices of iterable. `f` should accept two arguments,
+    an index and a value.
+    """
     if rest:
         if len(rest) == 1:
             return (f(i, x) for i, x in enumerate(iterator(rest[0])))
@@ -156,7 +162,7 @@ def map_indexed(f: Fn, *rest: Iterable):
 
 def filter(pred: Fn, *rest: Iterable):
     """
-    Filter values from iterable such that only those where pred(x) is truthy.
+    Filter values from iterable such that only those where `pred` is truthy.
     """
     if rest:
         if len(rest) == 1:
@@ -181,11 +187,45 @@ def filter(pred: Fn, *rest: Iterable):
     return xform
 
 
+def __keep_generator(f: Fn, coll: Iterable) -> Iterable:
+    for x in iterator(coll):
+        res = f(x)
+        if res is not None:
+            yield res
+
+
 def remove(pred: Fn, *rest: Iterable):
     """
     Like `filter` but removes values from iterable where pred(x) is truthy.
     """
     return filter(complement(pred), *rest)
+
+
+def keep(f: Fn, *rest: Iterable):
+    """
+    Map values from iterable, discarding any where f(x) is None.
+    """
+    if rest:
+        if len(rest) == 1:
+            return __keep_generator(f, rest[0])
+        raise TypeError("Can't `keep` on more than one collection.")
+
+    def xform(rf):
+        def rf2(init, *xs):
+            if not xs:
+                return rf(init)
+            elif len(xs) == 1:
+                res = f(xs[0])
+                if res is not None:
+                    return rf(init, res)
+                return init
+            raise TypeError(
+                f"Some arities of transducing `keep` not supported ({1 + len(xs)})."
+            )
+
+        return rf2
+
+    return xform
 
 
 class Reduced:
@@ -217,7 +257,7 @@ def preserving_reduced(rf):
     return rf2
 
 
-def __take_generator(n: int, coll: Iterable):
+def __take_generator(n: int, coll: Iterable) -> Iterable:
     """
     Helper function to implement `take` generator.
     """
@@ -255,7 +295,7 @@ def take(n: int, *rest: Iterable):
     return xform
 
 
-def __drop_generator(n: int, coll: Iterable):
+def __drop_generator(n: int, coll: Iterable) -> Iterable:
     """
     Helper function to implement `drop` generator.
     """
@@ -365,7 +405,31 @@ def dedupe(*rest: Iterable):
     return xform
 
 
-def partition(size):
+def __partition_generator(size: int, coll: Iterable) -> Iterable:
+    i = 0
+    part = []
+    for x in coll:
+        part.append(x)
+        i += 1
+        if i == size:
+            yield part
+            part = []
+            i = 0
+    if i > 0:
+        yield part
+        part = []
+        i = 0
+
+
+def partition(size: int, *rest: Iterable):
+    """
+    Partition iterable into parts of size `size`.
+    """
+    if rest:
+        if len(rest) == 1:
+            return __partition_generator(size, rest[0])
+        raise TypeError("Can't `drop` on more than one collection.")
+
     def xform(rf):
         i = 0
         part = []
@@ -482,7 +546,7 @@ def into_new(xform: Fn, coll: Coll) -> Coll:
     return into(empty(coll), xform, coll)
 
 
-def __concat_generator(colls: Iterable[Iterable]):
+def __concat_generator(colls: Iterable[Iterable]) -> Iterable:
     for coll in colls:
         yield from coll
 
