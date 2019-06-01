@@ -65,7 +65,7 @@ def comp(f, *fs):
 
 
 # declare a new collection protocol
-collection = protocol("conj", "conj_iterable", "immutable", "empty")
+collection = protocol("conj_one", "conj_iterable", "is_immutable", "empty")
 
 
 def conj(coll: Coll, *xs) -> Coll:
@@ -73,15 +73,15 @@ def conj(coll: Coll, *xs) -> Coll:
     Conjoin the value x onto coll.
     """
     if len(xs) == 1:
-        return collection.conj(coll, xs[0])
+        return collection.conj_one(coll, xs[0])
     elif not xs:
         return coll
     return collection.conj_iterable(coll, xs)
 
 
-def immutable(coll: Coll) -> bool:
+def is_immutable(coll: Coll) -> bool:
     try:
-        return collection.immutable(coll)
+        return collection.is_immutable(coll)
     except:
         return False
 
@@ -464,7 +464,7 @@ def into(init, *rest):
     collections and using the iterable conj (which is assumed to be a more efficient
     way of adding to `init`).
     """
-    rf = chunked_conj() if immutable(init) else conj
+    rf = chunked_conj() if is_immutable(init) else conj
     if len(rest) == 1:
         return reduce(rf, init, rest[0])
     elif len(rest) == 2:
@@ -557,34 +557,42 @@ def chunked_conj(chunk_size=32) -> Fn:
 # extend collection protocol for built in list, set, dict, str
 collection.extend(
     list,
-    ("conj", lambda l, x: l.append(x) or l),
+    ("conj_one", lambda l, x: l.append(x) or l),
     ("conj_iterable", lambda l, iterable: l.extend(iterable) or l),
-    ("immutable", lambda _: False),
+    ("is_immutable", lambda _: False),
     ("empty", lambda _: []),
 )
 
 collection.extend(
     set,
-    ("conj", lambda s, x: s.add(x) or s),
+    ("conj_one", lambda s, x: s.add(x) or s),
     ("conj_iterable", lambda s, iterable: s.update(iterable) or s),
-    ("immutable", lambda _: False),
+    ("is_immutable", lambda _: False),
     ("empty", lambda _: set()),
 )
 
 collection.extend(
     dict,
-    ("conj", lambda d, t: d.update([t]) or d),
+    ("conj_one", lambda d, t: d.update([t]) or d),
     ("conj_iterable", lambda d, iterable: d.update(iterable) or d),
-    ("immutable", lambda _: False),
+    ("is_immutable", lambda _: False),
     ("empty", lambda _: {}),
 )
 
 collection.extend(
     str,
-    ("conj", lambda s, x: s + x),
+    ("conj_one", lambda s, x: s + x),
     ("conj_iterable", lambda s, iterable: "".join(x for x in concat([s], iterable))),
-    ("immutable", lambda _: True),
+    ("is_immutable", lambda _: True),
     ("empty", lambda _: ""),
+)
+
+collection.extend(
+    frozenset,
+    ("conj_one", lambda fs, x: fs.union([x])),
+    ("conj_iterable", lambda fs, iterable: fs.union(iterable)),
+    ("is_immutable", lambda _: True),
+    ("empty", lambda _: frozenset()),
 )
 
 # use dict.items as the iterator accessor for built in dict

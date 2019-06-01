@@ -75,16 +75,16 @@ class ConjTests(unittest.TestCase):
     def test_conj_set(self):
         coll = set()
         t.conj(coll, 1)
-        self.assertEqual(set([1]), coll)
+        self.assertEqual({1}, coll)
 
         # conj also returns the provided coll for chaining
         coll2 = t.conj(coll, 42)
-        self.assertEqual(set([1, 42]), coll2)
+        self.assertEqual({1, 42}, coll2)
         self.assertTrue(coll2 is coll)
 
         # conj supports multiple values
         t.conj(coll, 99, 100, -500, 99, 42)
-        self.assertEqual(set([1, 42, 99, 100, -500]), coll)
+        self.assertEqual({1, 42, 99, 100, -500}, coll)
         self.assertEqual(5, len(coll))
 
     def test_conj_dict(self):
@@ -129,7 +129,7 @@ class IteratorTests(unittest.TestCase):
             return coll.__class__(t.iterator(coll))
 
         self.assertEqual([1, 2, 3], round_trip([1, 2, 3]))
-        self.assertEqual(set([1, 2, 3, 1]), round_trip(set([1, 2, 3, 1])))
+        self.assertEqual({1, 2, 3, 1}, round_trip({1, 2, 3, 1}))
         self.assertEqual({1: 2, 3: 4}, round_trip({1: 2, 3: 4}))
 
 
@@ -237,7 +237,7 @@ class IntoNewTests(unittest.TestCase):
         self.assertEqual([900, 1089, 1296], t.into_new(xf, numbers_list))
 
         numbers_set = set(range(100, 138))
-        self.assertEqual(set([15129, 15876]), t.into_new(xf, numbers_set))
+        self.assertEqual({15129, 15876}, t.into_new(xf, numbers_set))
 
         duplicate_numbers_list = [1, 2, 3, 2, 1, 2, 3, 2, 1]
         self.assertEqual([1, 2, 3], t.into_new(t.distinct(), duplicate_numbers_list))
@@ -285,8 +285,13 @@ class IntoNewTests(unittest.TestCase):
     def test_immutable(self):
         # str is immutable
         xf = t.map(lambda c: c.upper())
-        s2 = t.into_new(xf, "hello, world!")
-        self.assertEqual("HELLO, WORLD!", s2)
+        s = t.into_new(xf, "hello, world!")
+        self.assertEqual("HELLO, WORLD!", s)
+
+        # frozenset is immutable
+        fs = t.into_new(xf, frozenset("hello hello!"))
+        self.assertTrue(isinstance(fs, frozenset))
+        self.assertEqual({"H", "E", "L", "O", "!", " "}, fs)
 
 
 class TransducerTests(unittest.TestCase):
@@ -392,7 +397,7 @@ class GenerateTest(unittest.TestCase):
         # all elements are buffered into a single list
         res = list(g)
         self.assertEqual(1, len(res))
-        self.assertEqual([set(["H", "E", "O"])], res)
+        self.assertEqual([{"H", "E", "O"}], res)
 
 
 class PartitionTest(unittest.TestCase):
