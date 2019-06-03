@@ -342,6 +342,14 @@ class ChunkedConjTest(unittest.TestCase):
         self.assertEqual([1, 2, 3, 4, 5, 6, 7, 8], conj(l, 8))
         self.assertEqual([1, 2, 3, 4, 5, 6, 7, 8], conj(l))
 
+        # even though a chunked_conj fn shouldn't be reused, we can
+        # check to make sure its cleared out anyways.
+        self.assertEqual([], conj([], 88))
+        self.assertEqual([], conj([], 88))
+        self.assertEqual([88, 88, 88], conj([], 88))
+        self.assertEqual([], conj([], 99))
+        self.assertEqual([99], conj([]))
+
     def test_chunking_immutable_coll(self):
         conj = t.chunked_conj(chunk_size=5)
         self.assertEqual("hi", conj("hi", " "))
