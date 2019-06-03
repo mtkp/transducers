@@ -8,7 +8,6 @@ import transducers.protocols as p
 # TODO
 # - take-while (uses reduced)
 # - drop-while
-# - take-nth
 # - interpose (uses reduced)
 # - halt-when (uses reduced)
 # - keep-indexed
@@ -103,6 +102,62 @@ def iterator(coll: Iterable) -> Iterable:
         return custom_iter.iter(coll)
     except:
         return iter(coll)
+
+
+#  reducer/transducer wrappers
+
+
+class Reduced:
+    def __init__(self, value):
+        self.value = value
+
+
+def ensure_reduced(value) -> Reduced:
+    """
+    Ensure the value is wrapped with a reduced wrapper.
+    """
+    if isinstance(value, Reduced):
+        return value
+    return Reduced(value)
+
+
+def preserving_reduced(rf):
+    """
+    Wrap a reduced result with a second reduced wrapper; for nested
+    reductions.
+    """
+
+    def rf2(init, x):
+        init = rf(init, x)
+        if isinstance(init, Reduced):
+            return Reduced(init)
+        return init
+
+    return rf2
+
+
+def __safe_completing(f):
+    """
+    Wrap the function `f` (a reducing function) with a function that will
+    return the first argument if `f` does not accept calls with a single
+    argument. To be used with transduction. If a reducing function should
+    do something different (such as finalize some intermediate state), then
+    the reducing function should support single argument (1-arity) calls
+    to override `__safe_completing` behavior.
+    """
+
+    def f2(arg, *rest):
+        if not rest:
+            try:
+                return f(arg)
+            except TypeError:
+                return arg
+        return f(arg, *rest)
+
+    return f2
+
+
+# transducers
 
 
 def map(f: Fn, *rest: Iterable):
@@ -228,35 +283,6 @@ def keep(f: Fn, *rest: Iterable):
     return xform
 
 
-class Reduced:
-    def __init__(self, value):
-        self.value = value
-
-
-def ensure_reduced(value) -> Reduced:
-    """
-    Ensure the value is wrapped with a reduced wrapper.
-    """
-    if isinstance(value, Reduced):
-        return value
-    return Reduced(value)
-
-
-def preserving_reduced(rf):
-    """
-    Wrap a reduced result with a second reduced wrapper; for nested
-    reductions.
-    """
-
-    def rf2(init, x):
-        init = rf(init, x)
-        if isinstance(init, Reduced):
-            return Reduced(init)
-        return init
-
-    return rf2
-
-
 def __take_generator(n: int, coll: Iterable) -> Iterable:
     """
     Helper function to implement `take` generator.
@@ -331,6 +357,34 @@ def drop(n: int, *rest: Iterable):
     return xform
 
 
+def take_nth(n: int, *rest: Iterable):
+    if rest:
+        if len(rest) == 1:
+            return (
+                x for (i, x) in map_indexed(lambda x, y: (x, y), rest[0]) if i % n == 0
+            )
+        raise TypeError("Can't `take_nth` on more than one collection.")
+
+    def xform(rf):
+        indexed = map_indexed(lambda x, y: (x, y))
+
+        def rf2(init, *xs):
+            if not xs:
+                return rf(init)
+            elif len(xs) == 1:
+                i, x = xs[0]
+                if i % n == 0:
+                    return rf(init, x)
+                return init
+            raise TypeError(
+                f"Some arities of transducing `take_nth` not supported ({1 + len(xs)})."
+            )
+
+        return indexed(rf2)
+
+    return xform
+
+
 def __distinct_generator(coll: Iterable) -> Iterable:
     s: Set = set()
     for x in coll:
@@ -380,7 +434,7 @@ def dedupe(*rest: Iterable):
     if rest:
         if len(rest) == 1:
             return __dedupe_generator(rest[0])
-        raise TypeError("Can't `drop` on more than one collection.")
+        raise TypeError("Can't `dedupe` on more than one collection.")
 
     def xform(rf):
         stub = object()
@@ -397,7 +451,7 @@ def dedupe(*rest: Iterable):
                     return rf(init, x)
                 return init
             raise TypeError(
-                f"Some arities of transducing `distinct` not supported (received {1 + len(xs)})."
+                f"Some arities of transducing `dedupe` not supported (received {1 + len(xs)})."
             )
 
         return rf2
@@ -428,7 +482,7 @@ def partition(size: int, *rest: Iterable):
     if rest:
         if len(rest) == 1:
             return __partition_generator(size, rest[0])
-        raise TypeError("Can't `drop` on more than one collection.")
+        raise TypeError("Can't `partition` on more than one collection.")
 
     def xform(rf):
         i = 0
@@ -471,18 +525,6 @@ def reduce(f: Fn, init, coll: Iterable):
             init = init.value
             break
     return init
-
-
-def __safe_completing(f):
-    def f2(arg, *rest):
-        if not rest:
-            try:
-                return f(arg)
-            except TypeError:
-                return arg
-        return f(arg, *rest)
-
-    return f2
 
 
 def transduce(xform: Fn, f: Fn, init, coll: Iterable):
@@ -540,8 +582,8 @@ def into(init, *rest):
 
 def into_new(xform: Fn, coll: Coll) -> Coll:
     """
-    Transduce `coll` into a new empty coll of the same type, while
-    applying transducing funtion `xform` to the sequence.
+    Transduce `coll` into a new empty coll of the same type, while applying
+    transducing function `xform` to the sequence.
     """
     return into(empty(coll), xform, coll)
 

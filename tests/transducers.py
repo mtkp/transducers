@@ -447,3 +447,26 @@ class KeepTest(unittest.TestCase):
         self.assertEqual(
             ["forty-two", "seven", "seven", "four", "four", "seven"], list(res)
         )
+
+
+class ReduceTest(unittest.TestCase):
+    def test_reduce(self):
+        fib = lambda tup, _: (tup[1], tup[0] + tup[1])
+
+        res = t.reduce(fib, (0, 1), range(3))
+        self.assertEqual(res, (2, 3))
+
+        res = t.reduce(fib, (2, 3), range(50))
+        self.assertEqual(res, (53316291173, 86267571272))
+
+
+class TakeNthTest(unittest.TestCase):
+    def test_take_nth(self):
+        res = t.take_nth(5, range(1, 19))
+        self.assertTrue(inspect.isgenerator(res))
+        self.assertEqual([1, 6, 11, 16], list(res))
+
+    def test_take_nth_transduction(self):
+        xf = t.comp(t.partition(3), t.take_nth(7))
+        res = t.into([], xf, range(60))
+        self.assertEqual([[0, 1, 2], [21, 22, 23], [42, 43, 44]], res)

@@ -21,5 +21,6 @@ from transducers.transducers import (
     remove,
     reduce,
     take,
+    take_nth,
     transduce,
 )
