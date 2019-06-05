@@ -10,7 +10,6 @@ from transducers.transducers import (
     dedupe,
     drop,
     filter,
-    generate,
     into,
     into_new,
     iterator,

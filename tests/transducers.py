@@ -380,34 +380,6 @@ def set_buffer(rf):
     return rf2
 
 
-class GenerateTest(unittest.TestCase):
-    def test_generate(self):
-        xf = t.comp(t.map(lambda s: s.upper()), t.remove(lambda s: s == " "))
-
-        g = t.generate(xf, "h e llo")
-        self.assertTrue(inspect.isgenerator(g))
-
-        res = list(g)
-        self.assertEqual(5, len(res))
-        self.assertEqual(["H", "E", "L", "L", "O"], res)
-
-    def test_generate_completion(self):
-        xf = t.comp(
-            t.map(lambda s: s.upper()),
-            t.remove(lambda s: s == " "),
-            t.remove(lambda s: s == "L"),
-            set_buffer,  # <- transducer which requires completion to yield result
-        )
-
-        g = t.generate(xf, "h e llo")
-        self.assertTrue(inspect.isgenerator(g))
-
-        # all elements are buffered into a single list
-        res = list(g)
-        self.assertEqual(1, len(res))
-        self.assertEqual([{"H", "E", "O"}], res)
-
-
 class PartitionTest(unittest.TestCase):
     def test_partition(self):
         # generator

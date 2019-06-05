@@ -11,6 +11,8 @@ import transducers.protocols as p
 # - interpose (uses reduced)
 # - halt-when (uses reduced)
 # - keep-indexed
+# - iterate
+# - generator transducer
 
 
 def identity(x):
@@ -60,6 +62,17 @@ def comp(f, *fs):
             return reduce(lambda x, f2: f2(x), first(*args), fs[:-1])
 
         return composition
+
+
+def repeat(x, n=None):
+    if n is None:
+        while True:
+            yield x
+    else:
+        i = n
+        while i > 0:
+            i -= 1
+            yield x
 
 
 # declare a new collection protocol
@@ -536,28 +549,6 @@ def transduce(xform: Fn, f: Fn, init, coll: Iterable):
     f = xform(__safe_completing(f))
     ret = reduce(f, init, coll)
     return f(ret)
-
-
-def generate(xform: Fn, coll: Iterable) -> Iterable:
-    """
-    Returns a generator which transduces the `coll` using `xform`,
-    and yields the result.
-    """
-    f = xform(__safe_completing(lambda x, y: y))
-    stub = object()
-    init = stub
-    for x in iterator(coll):
-        init = f(init, x)
-        if isinstance(init, Reduced):
-            if init.value is not stub:
-                yield init.value
-            break
-        if init is not stub:
-            yield init
-            init = stub
-    init = f(stub)
-    if init is not stub:
-        yield init
 
 
 def into(init, *rest):
