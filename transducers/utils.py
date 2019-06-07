@@ -77,3 +77,14 @@ def index(f: Fn, coll: Iterable):
         return acc
 
     return t.reduce(rf, {}, coll)
+
+
+def reapply(f: Fn, x):
+    """
+    Reapply `f` to `f(x)`.
+    Returns a generator that yields `x`, `f(x)`, `f(f(x))`, `f(f(f(x)))`, etc.
+    """
+    yield x
+    while True:
+        x = f(x)
+        yield x

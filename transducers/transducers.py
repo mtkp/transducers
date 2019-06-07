@@ -11,8 +11,6 @@ import transducers.protocols as p
 # - interpose (uses reduced)
 # - halt-when (uses reduced)
 # - keep-indexed
-# - iterate
-# - generator transducer
 
 
 def identity(x):

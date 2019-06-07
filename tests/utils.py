@@ -1,6 +1,8 @@
 import unittest
+import inspect
 
 import transducers.utils as u
+import transducers as t
 
 
 class UtilsTests(unittest.TestCase):
@@ -77,3 +79,8 @@ class UtilsTests(unittest.TestCase):
         index = u.index(lambda x: x % 2 == 0, nums)
 
         self.assertEqual({True: 98, False: 99}, index)
+
+    def test_reapply(self):
+        nums = u.reapply(lambda x: x + 1, 0)
+        self.assertTrue(inspect.isgenerator(nums))
+        self.assertEqual(list(range(100)), list(t.take(100, nums)))
